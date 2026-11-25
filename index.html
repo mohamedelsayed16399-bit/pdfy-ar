@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>صور لـ PDF - حوّل صورك لملف PDF واحد</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,Tahoma,Arial,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+.w{max-width:760px;margin:auto;padding:16px}h1{margin:8px 0 2px;font-size:28px}p.s{margin:0 0 14px;color:#94a3b8}
+#drop{border:2px dashed #38bdf8;border-radius:16px;padding:28px;text-align:center;cursor:pointer;background:#1e293b}
+#drop b{font-size:18px}#drop.o{background:#0c4a6e}
+#list{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:14px 0}
+.it{background:#1e293b;border-radius:12px;padding:6px;text-align:center;position:relative}
+.it .th{height:110px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#0b1220;border-radius:8px}
+.it img{max-width:100%;max-height:110px;transition:transform .2s}
+.it .n{position:absolute;top:4px;right:4px;background:#38bdf8;color:#000;border-radius:50%;width:22px;height:22px;font-size:12px;line-height:22px;font-weight:700}
+.bt{display:flex;gap:4px;justify-content:center;margin-top:5px}
+button,select{font:inherit;border:0;border-radius:8px;padding:6px 10px;background:#334155;color:#fff;cursor:pointer}
+.bt button{padding:4px 8px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#1e293b;border-radius:12px;padding:12px;margin-bottom:10px}
+.row label{display:flex;gap:6px;align-items:center;font-size:14px}
+#go{width:100%;font-size:20px;padding:14px;background:#22c55e;color:#04210f;font-weight:700;border-radius:12px}
+#go:disabled{opacity:.4}#st{text-align:center;margin:10px;color:#94a3b8;min-height:22px}
+footer{text-align:center;color:#64748b;font-size:12px;margin:18px 0}
+</style></head><body><div class="w">
+<h1>📄 صور لـ PDF</h1><p class="s">اجمع صورك (مستندات، بطاقات، ورق مذاكرة) في ملف PDF واحد. كله على جهازك، مفيش حاجة بتترفع لأي مكان.</p>
+<div id="drop"><b>اضغط لاختيار الصور أو اسحبها هنا</b><br><small>JPG / PNG / WebP / كاميرا الموبايل</small></div>
+<input id="f" type="file" accept="image/*" multiple hidden>
+<div id="list"></div>
+<div class="row">
+<label>مقاس الصفحة <select id="ps"><option value="a4">A4</option><option value="fit">على قد الصورة</option><option value="letter">Letter</option></select></label>
+<label>الهامش <select id="mg"><option value="0">بدون</option><option value="20" selected>صغير</option><option value="40">كبير</option></select></label>
+<label>الجودة <select id="q"><option value=".95">عالية</option><option value=".8" selected>متوسطة (حجم أصغر)</option><option value=".6">منخفضة</option></select></label>
+<label>اسم الملف <input id="nm" value="مستنداتي" style="width:120px;padding:6px;border-radius:8px;border:0"></label>
+</div>
+<button id="go" disabled>إنشاء PDF</button><div id="st"></div>
+<footer>صور لـ PDF · مجاني · شغال بدون إنترنت بعد التحميل</footer></div>
+<script>
+const $=id=>document.getElementById(id);let items=[];
+const drop=$('drop'),f=$('f');
+drop.onclick=()=>f.click();
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('o')};
+drop.ondragleave=()=>drop.classList.remove('o');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('o');add(e.dataTransfer.files)};
+f.onchange=()=>{add(f.files);f.value=''};
+function add(fl){for(const x of fl){if(!/^image\//.test(x.type))continue;items.push({file:x,url:URL.createObjectURL(x),rot:0})}render()}
+function render(){const L=$('list');L.innerHTML='';
+items.forEach((it,i)=>{const d=document.createElement('div');d.className='it';
+d.innerHTML='<span class="n">'+(i+1)+'</span><div class="th"><img src="'+it.url+'" style="transform:rotate('+it.rot+'deg)"></div><div class="bt"><button data-a="l">▶</button><button data-a="r">↻</button><button data-a="x">✕</button><button data-a="n">◀</button></div>';
+d.querySelectorAll('button').forEach(b=>b.onclick=()=>act(i,b.dataset.a));L.appendChild(d)});
+$('go').disabled=!items.length;$('st').textContent=items.length?items.length+' صورة جاهزة':''}
+function act(i,a){if(a=='x'){URL.revokeObjectURL(items[i].url);items.splice(i,1)}
+else if(a=='r')items[i].rot=(items[i].rot+90)%360;
+else if(a=='l'&&i>0)[items[i-1],items[i]]=[items[i],items[i-1]];
+else if(a=='n'&&i<items.length-1)[items[i+1],items[i]]=[items[i],items[i+1]];
+render()}
+function load(u){return new Promise((r,j)=>{const m=new Image();m.onload=()=>r(m);m.onerror=j;m.src=u})}
+async function jpeg(it,q){const m=await load(it.url);const sw=it.rot%180?m.naturalHeight:m.naturalWidth,sh=it.rot%180?m.naturalWidth:m.naturalHeight;
+const s=Math.min(1,2600/Math.max(sw,sh));const c=document.createElement('canvas');c.width=Math.round(sw*s);c.height=Math.round(sh*s);
+const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.translate(c.width/2,c.height/2);g.rotate(it.rot*Math.PI/180);
+const dw=m.naturalWidth*s,dh=m.naturalHeight*s;g.drawImage(m,-dw/2,-dh/2,dw,dh);
+const b=await new Promise(r=>c.toBlob(r,'image/jpeg',q));return{w:c.width,h:c.height,data:new Uint8Array(await b.arrayBuffer())}}
+function build(imgs,ps,mg){const enc=new TextEncoder();const parts=[];let len=0;const offs=[];
+const push=x=>{if(typeof x=='string')x=enc.encode(x);parts.push(x);len+=x.length};
+const obj=(n,fn)=>{offs[n]=len;push(n+' 0 obj\n');fn();push('\nendobj\n')};
+const N=imgs.length;push('%PDF-1.4\n%\xe2\xe3\n');
+obj(1,()=>push('<</Type/Catalog/Pages 2 0 R>>'));
+obj(2,()=>push('<</Type/Pages/Count '+N+'/Kids['+imgs.map((_,i)=>(3+i*3)+' 0 R').join(' ')+']>>'));
+imgs.forEach((im,i)=>{const b=3+i*3;let pw,ph;
+if(ps=='fit'){pw=im.w*.75+mg*2;ph=im.h*.75+mg*2}else{[pw,ph]=ps=='a4'?[595.28,841.89]:[612,792];if(im.w>im.h&&0){}}
+const aw=pw-mg*2,ah=ph-mg*2;let s=Math.min(aw/im.w,ah/im.h);if(ps=='fit')s=.75;
+const w=im.w*s,h=im.h*s,x=(pw-w)/2,y=(ph-h)/2;
+const cs='q '+w.toFixed(2)+' 0 0 '+h.toFixed(2)+' '+x.toFixed(2)+' '+y.toFixed(2)+' cm /I Do Q';
+obj(b,()=>push('<</Type/Page/Parent 2 0 R/MediaBox[0 0 '+pw.toFixed(2)+' '+ph.toFixed(2)+']/Resources<</XObject<</I '+(b+1)+' 0 R>>>>/Contents '+(b+2)+' 0 R>>'));
+obj(b+1,()=>{push('<</Type/XObject/Subtype/Image/Width '+im.w+'/Height '+im.h+'/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length '+im.data.length+'>>\nstream\n');push(im.data);push('\nendstream')});
+obj(b+2,()=>push('<</Length '+cs.length+'>>\nstream\n'+cs+'\nendstream'))});
+const total=3+N*3;const xr=len;push('xref\n0 '+total+'\n0000000000 65535 f \n');
+for(let n=1;n<total;n++)push(String(offs[n]).padStart(10,'0')+' 00000 n \n');
+push('trailer\n<</Size '+total+'/Root 1 0 R>>\nstartxref\n'+xr+'\n%%EOF');
+return new Blob(parts,{type:'application/pdf'})}
+$('go').onclick=async()=>{const st=$('st'),b=$('go');b.disabled=true;
+try{const imgs=[];for(let i=0;i<items.length;i++){st.textContent='جاري تجهيز الصورة '+(i+1)+' من '+items.length+'...';imgs.push(await jpeg(items[i],+$('q').value));await new Promise(r=>setTimeout(r))}
+const blob=build(imgs,$('ps').value,+$('mg').value);window._blob=blob;
+const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=($('nm').value.trim()||'file')+'.pdf';document.body.appendChild(a);a.click();a.remove();
+st.textContent='تم ✅ حجم الملف '+(blob.size/1048576).toFixed(2)+' ميجا'}catch(e){st.textContent='حصل خطأ، جرّب صور تانية'}
+b.disabled=!items.length}
+</script></body></html>
