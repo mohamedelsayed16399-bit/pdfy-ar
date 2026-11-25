@@ -29,6 +29,8 @@ footer{text-align:center;color:#64748b;font-size:12px;margin:18px 0}
 <label>مقاس الصفحة <select id="ps"><option value="a4">A4</option><option value="fit">على قد الصورة</option><option value="letter">Letter</option></select></label>
 <label>الهامش <select id="mg"><option value="0">بدون</option><option value="20" selected>صغير</option><option value="40">كبير</option></select></label>
 <label>الجودة <select id="q"><option value=".95">عالية</option><option value=".8" selected>متوسطة (حجم أصغر)</option><option value=".6">منخفضة</option></select></label>
+<label>اتجاه الصفحة <select id="or"><option value="auto" selected>تلقائي حسب الصورة</option><option value="p">طولي</option></select></label>
+<label><input type="checkbox" id="pn"> رقّم الصفحات</label>
 <label>اسم الملف <input id="nm" value="مستنداتي" style="width:120px;padding:6px;border-radius:8px;border:0"></label>
 </div>
 <button id="go" disabled>إنشاء PDF</button><div id="st"></div>
@@ -58,27 +60,27 @@ const s=Math.min(1,2600/Math.max(sw,sh));const c=document.createElement('canvas'
 const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.translate(c.width/2,c.height/2);g.rotate(it.rot*Math.PI/180);
 const dw=m.naturalWidth*s,dh=m.naturalHeight*s;g.drawImage(m,-dw/2,-dh/2,dw,dh);
 const b=await new Promise(r=>c.toBlob(r,'image/jpeg',q));return{w:c.width,h:c.height,data:new Uint8Array(await b.arrayBuffer())}}
-function build(imgs,ps,mg){const enc=new TextEncoder();const parts=[];let len=0;const offs=[];
+function build(imgs,ps,mg,auto,pn){const enc=new TextEncoder();const parts=[];let len=0;const offs=[];
 const push=x=>{if(typeof x=='string')x=enc.encode(x);parts.push(x);len+=x.length};
 const obj=(n,fn)=>{offs[n]=len;push(n+' 0 obj\n');fn();push('\nendobj\n')};
 const N=imgs.length;push('%PDF-1.4\n%\xe2\xe3\n');
 obj(1,()=>push('<</Type/Catalog/Pages 2 0 R>>'));
 obj(2,()=>push('<</Type/Pages/Count '+N+'/Kids['+imgs.map((_,i)=>(3+i*3)+' 0 R').join(' ')+']>>'));
 imgs.forEach((im,i)=>{const b=3+i*3;let pw,ph;
-if(ps=='fit'){pw=im.w*.75+mg*2;ph=im.h*.75+mg*2}else{[pw,ph]=ps=='a4'?[595.28,841.89]:[612,792];if(im.w>im.h&&0){}}
+if(ps=='fit'){pw=im.w*.75+mg*2;ph=im.h*.75+mg*2}else{[pw,ph]=ps=='a4'?[595.28,841.89]:[612,792];if(auto&&im.w>im.h)[pw,ph]=[ph,pw]}
 const aw=pw-mg*2,ah=ph-mg*2;let s=Math.min(aw/im.w,ah/im.h);if(ps=='fit')s=.75;
 const w=im.w*s,h=im.h*s,x=(pw-w)/2,y=(ph-h)/2;
-const cs='q '+w.toFixed(2)+' 0 0 '+h.toFixed(2)+' '+x.toFixed(2)+' '+y.toFixed(2)+' cm /I Do Q';
-obj(b,()=>push('<</Type/Page/Parent 2 0 R/MediaBox[0 0 '+pw.toFixed(2)+' '+ph.toFixed(2)+']/Resources<</XObject<</I '+(b+1)+' 0 R>>>>/Contents '+(b+2)+' 0 R>>'));
+const cs='q '+w.toFixed(2)+' 0 0 '+h.toFixed(2)+' '+x.toFixed(2)+' '+y.toFixed(2)+' cm /I Do Q'+(pn?' BT /F1 10 Tf 0.4 g '+(pw/2-4).toFixed(1)+' '+Math.max(5,mg/2-4).toFixed(1)+' Td ('+(i+1)+') Tj ET':'');
+obj(b,()=>push('<</Type/Page/Parent 2 0 R/MediaBox[0 0 '+pw.toFixed(2)+' '+ph.toFixed(2)+']/Resources<</Font<</F1 '+(3+N*3)+' 0 R>>/XObject<</I '+(b+1)+' 0 R>>>>/Contents '+(b+2)+' 0 R>>'));
 obj(b+1,()=>{push('<</Type/XObject/Subtype/Image/Width '+im.w+'/Height '+im.h+'/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length '+im.data.length+'>>\nstream\n');push(im.data);push('\nendstream')});
 obj(b+2,()=>push('<</Length '+cs.length+'>>\nstream\n'+cs+'\nendstream'))});
-const total=3+N*3;const xr=len;push('xref\n0 '+total+'\n0000000000 65535 f \n');
+obj(3+N*3,()=>push('<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>'));const total=4+N*3;const xr=len;push('xref\n0 '+total+'\n0000000000 65535 f \n');
 for(let n=1;n<total;n++)push(String(offs[n]).padStart(10,'0')+' 00000 n \n');
 push('trailer\n<</Size '+total+'/Root 1 0 R>>\nstartxref\n'+xr+'\n%%EOF');
 return new Blob(parts,{type:'application/pdf'})}
 $('go').onclick=async()=>{const st=$('st'),b=$('go');b.disabled=true;
 try{const imgs=[];for(let i=0;i<items.length;i++){st.textContent='جاري تجهيز الصورة '+(i+1)+' من '+items.length+'...';imgs.push(await jpeg(items[i],+$('q').value));await new Promise(r=>setTimeout(r))}
-const blob=build(imgs,$('ps').value,+$('mg').value);window._blob=blob;
+const blob=build(imgs,$('ps').value,+$('mg').value,$('or').value=='auto',$('pn').checked);window._blob=blob;
 const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=($('nm').value.trim()||'file')+'.pdf';document.body.appendChild(a);a.click();a.remove();
 st.textContent='تم ✅ حجم الملف '+(blob.size/1048576).toFixed(2)+' ميجا'}catch(e){st.textContent='حصل خطأ، جرّب صور تانية'}
 b.disabled=!items.length}
